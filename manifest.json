@@ -1,0 +1,14 @@
+{
+  "domain": "device_entity_xlsx_export",
+  "name": "Device Entity XLSX Export",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["frontend", "http", "panel_custom"],
+  "documentation": "https://github.com/Soul7495/Excel_Export_HA",
+  "integration_type": "service",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/Soul7495/Excel_Export_HA/issues",
+  "requirements": ["openpyxl==3.1.5"],
+  "single_config_entry": true,
+  "version": "0.2.0"
+}

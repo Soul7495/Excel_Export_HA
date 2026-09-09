@@ -1,0 +1,46 @@
+{
+  "title": "Device Entity XLSX Export",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Device Entity XLSX Export einrichten",
+        "description": "Aktiviert den Excel-Export für Geräte und deren Entitäten. Es sind keine weiteren Einstellungen nötig."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Die Integration ist bereits eingerichtet."
+    }
+  },
+  "services": {
+    "export_device": {
+      "name": "Geräte-Entitäten als Excel exportieren",
+      "description": "Exportiert alle Entitäten eines ausgewählten Home-Assistant-Geräts in eine XLSX-Datei.",
+      "fields": {
+        "device_id": {
+          "name": "Gerät",
+          "description": "Gerät, dessen Entitäten exportiert werden sollen."
+        },
+        "filename": {
+          "name": "Dateiname",
+          "description": "Optionaler Dateiname. Die Endung .xlsx wird automatisch ergänzt."
+        },
+        "include_disabled": {
+          "name": "Deaktivierte Entitäten einschließen",
+          "description": "Nimmt auch deaktivierte Entity-Registry-Einträge in den Export auf."
+        },
+        "include_attributes": {
+          "name": "Attribute einschließen",
+          "description": "Schreibt die aktuellen State-Attribute zusätzlich als JSON in die Excel-Datei."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "device_not_found": {
+      "message": "Das Gerät mit der ID {device_id} wurde nicht gefunden."
+    },
+    "no_entities": {
+      "message": "Für das Gerät {device_name} wurden keine exportierbaren Entitäten gefunden."
+    }
+  }
+}

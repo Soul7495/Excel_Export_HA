@@ -94,20 +94,9 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
 
       this._downloadUrl = response.download_url;
       this._downloadName = response.filename;
-      const autoDownload = this.shouldAutoDownload();
-      this._message = autoDownload
-        ? `Excel-Datei ist bereit: ${response.filename}`
-        : `Excel-Datei ist bereit. Zum Herunterladen unten auf „Datei herunterladen“ tippen.`;
+      this._message = `Excel-Datei ist bereit. Zum Herunterladen unten auf „Datei herunterladen“ tippen.`;
       this._busy = false;
       this.render();
-
-      // Load the attachment in a disposable frame instead of clicking the link.
-      // This keeps Home Assistant's router from treating the download as panel
-      // navigation while still presenting a normal HTTP download to Companion
-      // app WebViews. The visible link remains available as a fallback.
-      if (autoDownload) {
-        this.startDownload(response.download_url);
-      }
     } catch (error) {
       this._busy = false;
       this._message = `Export fehlgeschlagen: ${error.message || error}`;
@@ -119,21 +108,6 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
     const node = document.createElement("span");
     node.textContent = value ?? "";
     return node.innerHTML;
-  }
-
-  startDownload(url) {
-    const frame = document.createElement("iframe");
-    frame.hidden = true;
-    frame.title = "Excel-Datei herunterladen";
-    frame.src = url;
-    this.shadowRoot.appendChild(frame);
-    window.setTimeout(() => frame.remove(), 60000);
-  }
-
-  shouldAutoDownload() {
-    // Companion apps expose externalApp. The narrow flag also covers mobile
-    // WebViews where iframe downloads may replace the complete HA frontend.
-    return !window.externalApp && !this._narrow;
   }
 
   render(status = "") {

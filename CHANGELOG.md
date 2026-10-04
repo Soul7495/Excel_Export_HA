@@ -2,6 +2,12 @@
 
 All notable changes to **Device Entity XLSX Export** are documented here.
 
+## [0.3.3] - 2026-10-04
+
+### Fixed
+- Removed automatic download navigation on all clients because some Companion WebViews do not expose reliable mobile detection signals.
+- Creating an export now only prepares the XLSX and shows the explicit **Datei herunterladen** link.
+
 ## [0.3.2] - 2026-10-04
 
 ### Fixed

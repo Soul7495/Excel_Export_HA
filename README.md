@@ -1,6 +1,8 @@
 # Device Entity XLSX Export
 
-Home-Assistant-Custom-Integration für den komfortablen Excel-Export aller Entitäten eines Geräts. Version **0.2.0** bringt eine eigene Seite in der Home-Assistant-Seitenleiste und lädt die XLSX-Datei direkt im Browser herunter.
+Home-Assistant-Custom-Integration für den komfortablen Excel-Export aller Entitäten eines Geräts.
+
+Version **0.3.0** verbessert den Download in der Home-Assistant-Companion-App. Statt die XLSX-Datei nur als Browser-Blob zu erzeugen, erstellt die Integration jetzt einen kurzlebigen echten HTTP(S)-Download-Link. Das ist insbesondere für Android/iOS-WebViews zuverlässiger.
 
 ## Funktionen
 
@@ -8,7 +10,9 @@ Home-Assistant-Custom-Integration für den komfortablen Excel-Export aller Entit
 - übersichtliche Geräteauswahl mit Anzahl der zugeordneten Entitäten
 - Vorschau aller Entity-Registry-Einträge des Geräts
 - deaktivierte Entitäten werden standardmäßig angezeigt und exportiert
-- direkter XLSX-Download im Browser, ohne File Editor oder Samba
+- direkter XLSX-Download im Browser
+- verbesserter Download in der Home-Assistant-Companion-App ab v0.3.0
+- sichtbarer Download-Link als Fallback, falls ein automatischer Download blockiert wird
 - Live-Zustand, Einheit, Plattform, Device/State Class, Unique ID und Registry-Metadaten
 - optionale State-Attribute als JSON
 - zusätzliche Arbeitsblätter für Gerätedaten und Exportinformationen
@@ -29,20 +33,16 @@ Home-Assistant-Custom-Integration für den komfortablen Excel-Export aller Entit
 5. Home Assistant neu starten.
 6. Unter **Einstellungen → Geräte & Dienste → Integration hinzufügen** nach **Device Entity XLSX Export** suchen und einmal hinzufügen.
 
-Danach erscheint links **Excel Export**. Dort Gerät auswählen, optional die Entitäten prüfen und **Excel herunterladen** anklicken.
+Danach erscheint links **Excel Export**. Dort Gerät auswählen und **Excel erstellen** anklicken. Der Download wird automatisch gestartet. Falls die Companion-App den automatischen Start blockiert, bleibt darunter der Button **Datei herunterladen** sichtbar.
 
-## Update von Version 0.1.x
+## Update auf Version 0.3.0
 
-1. In HACS bei **Device Entity XLSX Export** das Update auf `0.2.0` installieren (bei einem benutzerdefinierten Repository ggf. über das Drei-Punkte-Menü neu herunterladen).
+1. In HACS **Device Entity XLSX Export** neu herunterladen/aktualisieren.
 2. Home Assistant vollständig neu starten.
-3. Browser-Cache einmal hart aktualisieren (`Strg+F5`), falls der neue Sidebar-Eintrag noch die alte Oberfläche zeigt.
-4. Falls die Integration noch nicht unter **Geräte & Dienste** eingerichtet ist, einmal hinzufügen.
+3. Falls noch die alte Oberfläche geladen wird, App bzw. Browser einmal vollständig schließen und erneut öffnen.
+4. In der Companion-App anschließend unter **Excel Export** einen neuen Export erzeugen.
 
-Die alten Dateien in `/config/entity_exports/` bleiben unverändert. Für den neuen Browser-Download muss dieser Ordner nicht mehr geöffnet werden.
-
-## Manueller Test
-
-Den Ordner `custom_components/device_entity_xlsx_export` nach `/config/custom_components/device_entity_xlsx_export` kopieren und Home Assistant neu starten. Bei einem Update den vorhandenen Integrationsordner vollständig durch den neuen ersetzen, damit keine veralteten Dateien übrig bleiben.
+Der erzeugte Download-Link ist bewusst nur **10 Minuten** gültig und enthält ein zufälliges Token. Die XLSX-Datei wird dafür temporär ausschließlich im Arbeitsspeicher von Home Assistant gehalten und nicht öffentlich abgelegt.
 
 ## Service / Automationen
 
@@ -57,17 +57,27 @@ data:
   include_attributes: true
 ```
 
-Der Service schreibt die Datei nach `/config/entity_exports/`. Die Sidebar-Oberfläche erzeugt dieselben Arbeitsblätter, liefert die Datei aber direkt an den angemeldeten Browser aus.
+Der Service schreibt die Datei weiterhin nach `/config/entity_exports/`. Die Sidebar-Oberfläche nutzt dagegen den direkten Download.
 
 ## Architektur und Sicherheit
 
 - Config Entry mit Einzelinstanz
 - `panel_custom`-Sidebar-Panel als gebündeltes JavaScript-Modul
-- authentifizierte Home-Assistant-HTTP-Endpunkte für Geräte, Entitäten und XLSX-Download
-- kein externer Webdienst und keine Übertragung von Home-Assistant-Daten nach außen
+- authentifizierte Home-Assistant-HTTP-Endpunkte für Geräte, Entitäten und das Erzeugen eines Downloads
+- Geräte-/Entity-/Export-Endpunkte sind zusätzlich serverseitig auf Administratoren beschränkt
+- zufälliger, kurzlebiger Download-Token für den eigentlichen Dateiabruf
+- Download-Cache nur im RAM, maximal 20 vorbereitete Dateien gleichzeitig
+- keine Übertragung von Home-Assistant-Daten an externe Dienste
 - Formelschutz für Textwerte, die mit `=`, `+`, `-` oder `@` beginnen
 - Dateinamen werden bereinigt; Pfadbestandteile werden nicht übernommen
 
-## Entwicklung / Validierung
+## v0.3.0 – Mobile-Download-Fix
 
-Vor einer Veröffentlichung sollten HACS Validation und Home Assistant Hassfest ausgeführt werden. Für die Aufnahme in das Standard-HACS-Verzeichnis gelten zusätzlich die jeweils aktuellen Anforderungen an Repository-Metadaten, Releases und Brand Assets.
+Die vorherige v0.2.0 lud die erzeugte XLSX-Datei per `fetch()` als Blob und startete danach programmgesteuert einen `<a download>`-Klick. Dieser Ablauf kann in eingebetteten WebViews, insbesondere in Companion-Apps, blockiert oder anders behandelt werden.
+
+v0.3.0 erzeugt stattdessen nach erfolgreicher Authentifizierung einen temporären Download-Link auf dem Home-Assistant-Server. Dadurch sieht die Companion-App einen normalen HTTP(S)-Dateidownload mit `Content-Disposition: attachment`. Falls ein automatischer Start nicht funktioniert, kann derselbe Link über den sichtbaren Download-Button erneut aufgerufen werden.
+
+
+## Validierung
+
+Das Repository enthält GitHub Actions für **HACS validation** und **Home Assistant hassfest**. Vor einem Release sollten beide Workflows erfolgreich durchlaufen.

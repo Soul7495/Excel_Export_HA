@@ -1,4 +1,7 @@
 {
-  "name": "Device Entity XLSX Export",
-  "homeassistant": "2026.8.0"
+  "name": "NIBE Control",
+  "filename": "nibe-control.js",
+  "content_in_root": false,
+  "render_readme": true,
+  "homeassistant": "2026.5.0"
 }

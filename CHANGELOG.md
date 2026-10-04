@@ -2,6 +2,12 @@
 
 All notable changes to **Device Entity XLSX Export** are documented here.
 
+## [0.3.2] - 2026-10-04
+
+### Fixed
+- Disabled automatic iframe downloads in the Companion App and narrow mobile WebViews, where they could still replace the complete Home Assistant frontend.
+- Mobile users now start the prepared XLSX download explicitly through the visible **Datei herunterladen** button.
+
 ## [0.3.1] - 2026-10-04
 
 ### Fixed

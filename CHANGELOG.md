@@ -2,6 +2,12 @@
 
 All notable changes to **Device Entity XLSX Export** are documented here.
 
+## [0.3.1] - 2026-10-04
+
+### Fixed
+- Prevented XLSX downloads from navigating the custom panel back to the Home Assistant start dashboard.
+- Kept the normal HTTP download flow for desktop browsers and mobile Companion App WebViews, including the visible fallback link.
+
 ## [0.3.0] - 2026-10-03
 
 ### Fixed

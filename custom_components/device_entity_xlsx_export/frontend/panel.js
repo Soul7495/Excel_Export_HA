@@ -98,12 +98,11 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
       this._busy = false;
       this.render();
 
-      // Desktop browsers usually start this immediately. Home Assistant Companion
-      // apps may block scripted downloads; the visible link remains available.
-      window.setTimeout(() => {
-        const link = this.shadowRoot.querySelector("#download-link");
-        if (link) link.click();
-      }, 50);
+      // Load the attachment in a disposable frame instead of clicking the link.
+      // This keeps Home Assistant's router from treating the download as panel
+      // navigation while still presenting a normal HTTP download to Companion
+      // app WebViews. The visible link remains available as a fallback.
+      this.startDownload(response.download_url);
     } catch (error) {
       this._busy = false;
       this._message = `Export fehlgeschlagen: ${error.message || error}`;
@@ -115,6 +114,15 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
     const node = document.createElement("span");
     node.textContent = value ?? "";
     return node.innerHTML;
+  }
+
+  startDownload(url) {
+    const frame = document.createElement("iframe");
+    frame.hidden = true;
+    frame.title = "Excel-Datei herunterladen";
+    frame.src = url;
+    this.shadowRoot.appendChild(frame);
+    window.setTimeout(() => frame.remove(), 60000);
   }
 
   render(status = "") {
@@ -144,7 +152,7 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
             <strong>${this.esc(this._downloadName)}</strong>
             <div class="download-note">Falls der Download nicht automatisch startet, hier tippen. Der Link ist 10 Minuten gültig.</div>
           </div>
-          <a id="download-link" class="download-button" href="${this.esc(this._downloadUrl)}">Datei herunterladen</a>
+          <a id="download-link" class="download-button" href="${this.esc(this._downloadUrl)}" download="${this.esc(this._downloadName)}" target="_blank" rel="noopener noreferrer">Datei herunterladen</a>
         </div>`
       : "";
 
@@ -187,6 +195,9 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
     });
     this.shadowRoot.querySelector("#show")?.addEventListener("click", () => this.loadEntities());
     this.shadowRoot.querySelector("#export")?.addEventListener("click", () => this.exportFile());
+    this.shadowRoot.querySelector("#download-link")?.addEventListener("click", event => {
+      event.stopPropagation();
+    });
   }
 }
 

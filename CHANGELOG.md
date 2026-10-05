@@ -2,6 +2,17 @@
 
 All notable changes to **Device Entity XLSX Export** are documented here.
 
+## [0.4.0] - 2026-10-05
+
+### Added
+- Multi-device selection in the sidebar panel with mobile-friendly checkboxes.
+- Combined entity preview for all selected devices.
+- Device name and Home Assistant device ID columns in the entity worksheet.
+- A dedicated **Geräte** worksheet containing metadata for every selected device.
+
+### Compatibility
+- Existing single-device exports and the `device_entity_xlsx_export.export_device` action remain supported.
+
 ## [0.3.3] - 2026-10-04
 
 ### Fixed

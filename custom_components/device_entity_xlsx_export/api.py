@@ -17,6 +17,15 @@ from .exporter import async_build_export, collect_device, list_devices
 XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
+def _device_ids(data: dict[str, Any]) -> list[str]:
+    """Return device IDs from new multi-device or legacy single-device input."""
+    value = data.get("device_ids")
+    if isinstance(value, list):
+        return [str(item) for item in value if item]
+    legacy = data.get("device_id")
+    return [str(legacy)] if legacy else []
+
+
 def _download_store(hass) -> dict[str, dict[str, Any]]:
     """Return the temporary in-memory download store."""
     return hass.data.setdefault(DOMAIN, {}).setdefault("downloads", {})
@@ -78,12 +87,20 @@ class EntitiesView(HomeAssistantView):
     async def get(self, request: web.Request) -> web.Response:
         """Return the selected device and its entities."""
         try:
-            device, rows = collect_device(
-                request.app[KEY_HASS],
-                request.query.get("device_id", ""),
-                request.query.get("include_disabled", "true").lower() != "false",
-            )
-            return self.json({"device": device, "entities": rows})
+            device_ids = request.query.getall("device_id", [])
+            devices = []
+            rows = []
+            for device_id in dict.fromkeys(device_ids):
+                device, device_rows = collect_device(
+                    request.app[KEY_HASS],
+                    device_id,
+                    request.query.get("include_disabled", "true").lower() != "false",
+                )
+                devices.append(device)
+                rows.extend(device_rows)
+            if not devices:
+                collect_device(request.app[KEY_HASS], "")
+            return self.json({"devices": devices, "entities": rows})
         except ServiceValidationError as err:
             return self.json({"error": str(err)}, status_code=400)
 
@@ -102,7 +119,7 @@ class ExportView(HomeAssistantView):
             data = await request.json()
             filename, content, _, _ = await async_build_export(
                 request.app[KEY_HASS],
-                device_id=str(data.get("device_id", "")),
+                device_ids=_device_ids(data),
                 filename=data.get("filename"),
                 include_disabled=bool(data.get("include_disabled", True)),
                 include_attributes=bool(data.get("include_attributes", True)),
@@ -132,7 +149,7 @@ class ExportPrepareView(HomeAssistantView):
             data = await request.json()
             filename, content, count, device_name = await async_build_export(
                 hass,
-                device_id=str(data.get("device_id", "")),
+                device_ids=_device_ids(data),
                 filename=data.get("filename"),
                 include_disabled=bool(data.get("include_disabled", True)),
                 include_attributes=bool(data.get("include_attributes", True)),

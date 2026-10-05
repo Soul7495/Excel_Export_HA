@@ -77,7 +77,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass,
             webcomponent_name="device-entity-xlsx-export-panel",
             frontend_url_path=PANEL_URL_PATH,
-            module_url=f"/{DOMAIN}/panel.js?v=0.3.3",
+            module_url=f"/{DOMAIN}/panel.js?v=0.4.0",
             sidebar_title=PANEL_TITLE,
             sidebar_icon=PANEL_ICON,
             require_admin=True,

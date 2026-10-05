@@ -3,6 +3,7 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._devices = [];
+    this._selected = [];
     this._entities = [];
     this._busy = false;
     this._loaded = false;
@@ -36,7 +37,8 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
 
   captureFormState() {
     const root = this.shadowRoot;
-    this._selected = root.querySelector("#device")?.value || this._selected || "";
+    this._selected = Array.from(root.querySelectorAll("[data-device-id]:checked"))
+      .map(input => input.dataset.deviceId);
     this._filename = root.querySelector("#filename")?.value || "";
     this._includeDisabled = root.querySelector("#disabled")?.checked ?? this._includeDisabled;
     this._includeAttributes = root.querySelector("#attributes")?.checked ?? this._includeAttributes;
@@ -44,8 +46,8 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
 
   async loadEntities() {
     this.captureFormState();
-    const id = this._selected;
-    if (!id) {
+    const ids = this._selected;
+    if (!ids.length) {
       this._entities = [];
       this.render();
       return;
@@ -55,12 +57,14 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
     this._message = "Entitäten werden geladen …";
     this.render();
     try {
+      const params = new URLSearchParams({ include_disabled: this._includeDisabled });
+      ids.forEach(id => params.append("device_id", id));
       const response = await this._hass.callApi(
         "GET",
-        `device_entity_xlsx_export/entities?device_id=${encodeURIComponent(id)}&include_disabled=${this._includeDisabled}`
+        `device_entity_xlsx_export/entities?${params.toString()}`
       );
       this._entities = response.entities;
-      this._deviceInfo = response.device;
+      this._deviceInfo = response.devices;
       this._message = "";
     } catch (error) {
       this._message = `Entitäten konnten nicht geladen werden: ${error.message || error}`;
@@ -71,8 +75,8 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
 
   async exportFile() {
     this.captureFormState();
-    const id = this._selected;
-    if (!id) return;
+    const ids = this._selected;
+    if (!ids.length) return;
 
     this._busy = true;
     this._downloadUrl = "";
@@ -85,7 +89,7 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
         "POST",
         "device_entity_xlsx_export/prepare",
         {
-          device_id: id,
+          device_ids: ids,
           filename: this._filename.trim(),
           include_disabled: this._includeDisabled,
           include_attributes: this._includeAttributes,
@@ -111,16 +115,20 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
   }
 
   render(status = "") {
-    const selected = this._selected || "";
-    const options = this._devices
+    const selected = this._selected || [];
+    const deviceOptions = this._devices
       .map(
-        d => `<option value="${this.esc(d.id)}" ${d.id === selected ? "selected" : ""}>${this.esc(d.name)} (${d.entity_count})</option>`
+        d => `<label class="device-option">
+          <input type="checkbox" data-device-id="${this.esc(d.id)}" ${selected.includes(d.id) ? "checked" : ""}>
+          <span>${this.esc(d.name)}</span><small>${d.entity_count} Entitäten</small>
+        </label>`
       )
       .join("");
 
     const rows = this._entities
       .map(
         e => `<tr class="${e.disabled_by ? "disabled" : ""}">
+          <td>${this.esc(e.device_name)}</td>
           <td><code>${this.esc(e.entity_id)}</code></td>
           <td>${this.esc(e.name)}</td>
           <td>${this.esc(e.state || "—")}</td>
@@ -135,7 +143,7 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
       ? `<div class="download-ready">
           <div>
             <strong>${this.esc(this._downloadName)}</strong>
-            <div class="download-note">Falls der Download nicht automatisch startet, hier tippen. Der Link ist 10 Minuten gültig.</div>
+            <div class="download-note">Zum Herunterladen hier tippen. Der Link ist 10 Minuten gültig.</div>
           </div>
           <a id="download-link" class="download-button" href="${this.esc(this._downloadUrl)}" download="${this.esc(this._downloadName)}" target="_blank" rel="noopener noreferrer">Datei herunterladen</a>
         </div>`
@@ -144,18 +152,18 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
     this.shadowRoot.innerHTML = `<style>
       :host{display:block;background:var(--primary-background-color);min-height:100%;color:var(--primary-text-color);font-family:var(--paper-font-body1_-_font-family,Arial,sans-serif)}
       .wrap{max-width:1200px;margin:auto;padding:24px}.hero{display:flex;gap:16px;align-items:center;margin-bottom:22px}.icon{font-size:34px}.hero h1{margin:0;font-size:28px}.hero p{margin:4px 0 0;color:var(--secondary-text-color)}
-      .card{background:var(--card-background-color);border-radius:14px;box-shadow:var(--ha-card-box-shadow,0 2px 8px #0002);padding:20px;margin-bottom:18px}.grid{display:grid;grid-template-columns:minmax(260px,2fr) minmax(200px,1fr);gap:16px}.field label{display:block;font-weight:600;margin-bottom:7px}.field select,.field input{box-sizing:border-box;width:100%;padding:11px;border:1px solid var(--divider-color);border-radius:8px;background:var(--card-background-color);color:var(--primary-text-color);font-size:15px}
+      .card{background:var(--card-background-color);border-radius:14px;box-shadow:var(--ha-card-box-shadow,0 2px 8px #0002);padding:20px;margin-bottom:18px}.grid{display:grid;grid-template-columns:minmax(260px,2fr) minmax(200px,1fr);gap:16px}.field>label{display:block;font-weight:600;margin-bottom:7px}.field input[type=text]{box-sizing:border-box;width:100%;padding:11px;border:1px solid var(--divider-color);border-radius:8px;background:var(--card-background-color);color:var(--primary-text-color);font-size:15px}.device-list{max-height:260px;overflow:auto;border:1px solid var(--divider-color);border-radius:8px;padding:6px;background:var(--card-background-color)}.device-option{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:9px 8px;border-radius:6px;cursor:pointer}.device-option:hover{background:var(--secondary-background-color)}.device-option small{color:var(--secondary-text-color)}.selection-tools{display:flex;gap:8px;margin-top:8px}.selection-tools button{padding:7px 10px;font-size:13px}
       .checks{display:flex;gap:24px;flex-wrap:wrap;margin:18px 0}.checks label{display:flex;align-items:center;gap:8px}.actions{display:flex;gap:10px;flex-wrap:wrap}button,.download-button{border:0;border-radius:9px;padding:11px 18px;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}button.primary,.download-button{background:var(--primary-color);color:#fff}button.secondary{background:var(--secondary-background-color);color:var(--primary-text-color)}button:disabled{opacity:.55;cursor:wait}.message{margin-top:14px;color:var(--secondary-text-color)}
       .download-ready{margin-top:16px;padding:14px;border:1px solid var(--divider-color);border-radius:10px;background:var(--secondary-background-color);display:flex;align-items:center;justify-content:space-between;gap:16px}.download-note{font-size:13px;color:var(--secondary-text-color);margin-top:4px}
       .summary{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}.summary h2{margin:0;font-size:20px}.table-wrap{overflow:auto;max-height:58vh}table{width:100%;border-collapse:collapse;font-size:14px}th{text-align:left;position:sticky;top:0;background:var(--card-background-color);z-index:1}th,td{padding:10px;border-bottom:1px solid var(--divider-color);white-space:nowrap}tr.disabled{opacity:.75}.tag{color:var(--warning-color,#d97706);font-weight:600}code{color:var(--primary-color)}
       @media(max-width:700px){.wrap{padding:14px}.grid{grid-template-columns:1fr}.hero h1{font-size:23px}.download-ready{align-items:stretch;flex-direction:column}.download-button{width:auto}}
     </style>
     <div class="wrap">
-      <div class="hero"><div class="icon">📊</div><div><h1>Excel Export</h1><p>Gerät wählen, Entitäten prüfen und als XLSX herunterladen.</p></div></div>
+      <div class="hero"><div class="icon">📊</div><div><h1>Excel Export</h1><p>Geräte wählen, Entitäten prüfen und als XLSX herunterladen.</p></div></div>
       <div class="card">
         <div class="grid">
-          <div class="field"><label for="device">Gerät</label><select id="device"><option value="">Bitte Gerät auswählen …</option>${options}</select></div>
-          <div class="field"><label for="filename">Dateiname (optional)</label><input id="filename" value="${this.esc(this._filename || "")}" placeholder="z. B. nibe_heat_pump.xlsx"></div>
+          <div class="field"><label>Geräte (${selected.length} ausgewählt)</label><div id="device-list" class="device-list">${deviceOptions}</div><div class="selection-tools"><button class="secondary" id="select-all">Alle auswählen</button><button class="secondary" id="select-none">Auswahl aufheben</button></div></div>
+          <div class="field"><label for="filename">Dateiname (optional)</label><input id="filename" type="text" value="${this.esc(this._filename || "")}" placeholder="z. B. geraete_export.xlsx"></div>
         </div>
         <div class="checks">
           <label><input id="disabled" type="checkbox" ${this._includeDisabled ? "checked" : ""}> Deaktivierte Entitäten einschließen</label>
@@ -163,19 +171,31 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
         </div>
         <div class="actions">
           <button class="secondary" id="show" ${this._busy ? "disabled" : ""}>Entitäten anzeigen</button>
-          <button class="primary" id="export" ${this._busy || !selected ? "disabled" : ""}>Excel erstellen</button>
+          <button class="primary" id="export" ${this._busy || !selected.length ? "disabled" : ""}>Excel erstellen</button>
         </div>
         <div class="message">${this.esc(status || this._message || "")}</div>
         ${downloadBox}
       </div>
-      ${this._entities.length ? `<div class="card"><div class="summary"><h2>${this.esc(this._deviceInfo?.Name)} – ${this._entities.length} Entitäten</h2></div><div class="table-wrap"><table><thead><tr><th>Entity ID</th><th>Name</th><th>Zustand</th><th>Einheit</th><th>Integration</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div></div>` : ""}
+      ${this._entities.length ? `<div class="card"><div class="summary"><h2>${this._deviceInfo.length} Geräte – ${this._entities.length} Entitäten</h2></div><div class="table-wrap"><table><thead><tr><th>Gerät</th><th>Entity ID</th><th>Name</th><th>Zustand</th><th>Einheit</th><th>Integration</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div></div>` : ""}
     </div>`;
 
-    this.shadowRoot.querySelector("#device")?.addEventListener("change", e => {
-      this._selected = e.target.value;
+    this.shadowRoot.querySelector("#device-list")?.addEventListener("change", () => {
+      this.captureFormState();
       this._entities = [];
       this._downloadUrl = "";
       this._downloadName = "";
+      this.render();
+    });
+    this.shadowRoot.querySelector("#select-all")?.addEventListener("click", () => {
+      this.captureFormState();
+      this._selected = this._devices.map(device => device.id);
+      this._entities = [];
+      this.render();
+    });
+    this.shadowRoot.querySelector("#select-none")?.addEventListener("click", () => {
+      this.captureFormState();
+      this._selected = [];
+      this._entities = [];
       this.render();
     });
     this.shadowRoot.querySelector("#show")?.addEventListener("click", () => this.loadEntities());

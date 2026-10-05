@@ -11,7 +11,7 @@ Export every entity assigned to a Home Assistant device as a structured Excel wo
 
 ## Features
 
-- Select any device and see how many entities belong to it.
+- Select one or multiple devices and see how many entities belong to each one.
 - Preview entity IDs, names, states, units, integrations and availability.
 - Include disabled Entity Registry entries.
 - Optionally include state attributes as JSON.
@@ -46,7 +46,7 @@ The **Excel Export** entry will then appear in the Home Assistant sidebar.
 ## Usage
 
 1. Open **Excel Export** from the sidebar.
-2. Select a device.
+2. Select one or multiple devices.
 3. Optionally enter a filename and adjust the export options.
 4. Select **Show entities** to preview the data.
 5. Select **Create Excel file**.

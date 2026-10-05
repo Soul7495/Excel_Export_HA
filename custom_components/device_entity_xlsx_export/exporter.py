@@ -90,6 +90,8 @@ def collect_device(hass, device_id, include_disabled=True):
         attrs = dict(state.attributes) if state else {}
         rows.append(
             {
+                "device_id": device.id,
+                "device_name": device.name_by_user or device.name or device.id,
                 "entity_id": entry.entity_id,
                 "name": (
                     entry.name
@@ -152,12 +154,25 @@ def collect_device(hass, device_id, include_disabled=True):
     return metadata, rows
 
 
-def build_workbook(metadata, rows, include_attributes):
+def collect_devices(hass, device_ids, include_disabled=True):
+    """Collect metadata and entities for multiple devices."""
+    metadata = []
+    rows = []
+    for device_id in dict.fromkeys(device_ids):
+        device, device_rows = collect_device(hass, device_id, include_disabled)
+        metadata.append(device)
+        rows.extend(device_rows)
+    return metadata, rows
+
+
+def build_workbook(devices, rows, include_attributes):
     book = Workbook()
     sheet = book.active
     sheet.title = "Entitäten"
 
     columns = [
+        ("device_name", "Gerät"),
+        ("device_id", "Home Assistant Device ID"),
         ("entity_id", "Entity ID"),
         ("name", "Name"),
         ("state", "Zustand"),
@@ -188,25 +203,29 @@ def build_workbook(metadata, rows, include_attributes):
 
     sheet.freeze_panes = "A2"
     sheet.auto_filter.ref = sheet.dimensions
-    widths = [42, 34, 22, 16, 16, 24, 22, 20, 20, 20, 20, 16, 25, 25, 42, 38, 26, 70]
+    widths = [34, 38, 42, 34, 22, 16, 16, 24, 22, 20, 20, 20, 20, 16, 25, 25, 42, 38, 26, 70]
     for i in range(1, len(columns) + 1):
         sheet.column_dimensions[get_column_letter(i)].width = widths[i - 1]
     for cells in sheet.iter_rows(min_row=2):
         for cell in cells:
             cell.alignment = Alignment(vertical="top")
 
-    device_sheet = book.create_sheet("Gerät")
-    device_sheet.append(["Feld", "Wert"])
+    device_sheet = book.create_sheet("Geräte")
+    device_columns = list(devices[0].keys())
+    device_sheet.append(device_columns)
     for cell in device_sheet[1]:
         cell.font = Font(bold=True)
-    for key, value in metadata.items():
-        device_sheet.append([key, _safe(value)])
-    device_sheet.column_dimensions["A"].width = 34
-    device_sheet.column_dimensions["B"].width = 70
+    for device in devices:
+        device_sheet.append([_safe(device.get(key)) for key in device_columns])
+    device_sheet.freeze_panes = "A2"
+    device_sheet.auto_filter.ref = device_sheet.dimensions
+    for i in range(1, len(device_columns) + 1):
+        device_sheet.column_dimensions[get_column_letter(i)].width = 32
 
     info = book.create_sheet("Exportinfo")
     info.append(["Feld", "Wert"])
     info.append(["Exportiert am", datetime.now().astimezone().isoformat(timespec="seconds")])
+    info.append(["Anzahl Geräte", len(devices)])
     info.append(["Anzahl Entitäten", len(rows)])
     info.append(["Attribute enthalten", include_attributes])
     for cell in info[1]:
@@ -219,23 +238,33 @@ def build_workbook(metadata, rows, include_attributes):
 
 async def async_build_export(
     hass: HomeAssistant,
-    device_id: str,
-    filename: str | None,
-    include_disabled: bool,
-    include_attributes: bool,
+    device_id: str | None = None,
+    device_ids: list[str] | None = None,
+    filename: str | None = None,
+    include_disabled: bool = True,
+    include_attributes: bool = True,
 ):
-    metadata, rows = collect_device(hass, device_id, include_disabled)
+    selected_ids = list(dict.fromkeys(device_ids or ([device_id] if device_id else [])))
+    if not selected_ids:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="device_not_found",
+            translation_placeholders={"device_id": ""},
+        )
+    devices, rows = collect_devices(hass, selected_ids, include_disabled)
     content = await hass.async_add_executor_job(
         build_workbook,
-        metadata,
+        devices,
         rows,
         include_attributes,
     )
+    export_name = devices[0]["Name"] if len(devices) == 1 else "geraete_export"
+    device_label = devices[0]["Name"] if len(devices) == 1 else f"{len(devices)} Geräte"
     return (
-        normalise_filename(filename, metadata["Name"]),
+        normalise_filename(filename, export_name),
         content,
         len(rows),
-        metadata["Name"],
+        device_label,
     )
 
 

@@ -44,6 +44,27 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
     this._includeAttributes = root.querySelector("#attributes")?.checked ?? this._includeAttributes;
   }
 
+  selectionChanged() {
+    this.captureFormState();
+    this._entities = [];
+    this._deviceInfo = [];
+    this._downloadUrl = "";
+    this._downloadName = "";
+    this._message = "";
+
+    const count = this.shadowRoot.querySelector("#selected-count");
+    if (count) count.textContent = this._selected.length;
+    const disabled = this._busy || !this._selected.length;
+    const show = this.shadowRoot.querySelector("#show");
+    const exportButton = this.shadowRoot.querySelector("#export");
+    if (show) show.disabled = disabled;
+    if (exportButton) exportButton.disabled = disabled;
+    const message = this.shadowRoot.querySelector(".message");
+    if (message) message.textContent = "";
+    this.shadowRoot.querySelector(".download-ready")?.remove();
+    this.shadowRoot.querySelector("#preview-card")?.remove();
+  }
+
   async loadEntities() {
     this.captureFormState();
     const ids = this._selected;
@@ -162,7 +183,7 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
       <div class="hero"><div class="icon">📊</div><div><h1>Excel Export</h1><p>Geräte wählen, Entitäten prüfen und als XLSX herunterladen.</p></div></div>
       <div class="card">
         <div class="grid">
-          <div class="field"><label>Geräte (${selected.length} ausgewählt)</label><div id="device-list" class="device-list">${deviceOptions}</div><div class="selection-tools"><button class="secondary" id="select-all">Alle auswählen</button><button class="secondary" id="select-none">Auswahl aufheben</button></div></div>
+          <div class="field"><label>Geräte (<span id="selected-count">${selected.length}</span> ausgewählt)</label><div id="device-list" class="device-list">${deviceOptions}</div><div class="selection-tools"><button class="secondary" id="select-all">Alle auswählen</button><button class="secondary" id="select-none">Auswahl aufheben</button></div></div>
           <div class="field"><label for="filename">Dateiname (optional)</label><input id="filename" type="text" value="${this.esc(this._filename || "")}" placeholder="z. B. geraete_export.xlsx"></div>
         </div>
         <div class="checks">
@@ -170,33 +191,29 @@ class DeviceEntityXlsxExportPanel extends HTMLElement {
           <label><input id="attributes" type="checkbox" ${this._includeAttributes ? "checked" : ""}> Attribute in Excel einschließen</label>
         </div>
         <div class="actions">
-          <button class="secondary" id="show" ${this._busy ? "disabled" : ""}>Entitäten anzeigen</button>
+          <button class="secondary" id="show" ${this._busy || !selected.length ? "disabled" : ""}>Entitäten anzeigen</button>
           <button class="primary" id="export" ${this._busy || !selected.length ? "disabled" : ""}>Excel erstellen</button>
         </div>
         <div class="message">${this.esc(status || this._message || "")}</div>
         ${downloadBox}
       </div>
-      ${this._entities.length ? `<div class="card"><div class="summary"><h2>${this._deviceInfo.length} Geräte – ${this._entities.length} Entitäten</h2></div><div class="table-wrap"><table><thead><tr><th>Gerät</th><th>Entity ID</th><th>Name</th><th>Zustand</th><th>Einheit</th><th>Integration</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div></div>` : ""}
+      ${this._entities.length ? `<div class="card" id="preview-card"><div class="summary"><h2>${this._deviceInfo.length} Geräte – ${this._entities.length} Entitäten</h2></div><div class="table-wrap"><table><thead><tr><th>Gerät</th><th>Entity ID</th><th>Name</th><th>Zustand</th><th>Einheit</th><th>Integration</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div></div>` : ""}
     </div>`;
 
     this.shadowRoot.querySelector("#device-list")?.addEventListener("change", () => {
-      this.captureFormState();
-      this._entities = [];
-      this._downloadUrl = "";
-      this._downloadName = "";
-      this.render();
+      this.selectionChanged();
     });
     this.shadowRoot.querySelector("#select-all")?.addEventListener("click", () => {
-      this.captureFormState();
-      this._selected = this._devices.map(device => device.id);
-      this._entities = [];
-      this.render();
+      this.shadowRoot.querySelectorAll("[data-device-id]").forEach(input => {
+        input.checked = true;
+      });
+      this.selectionChanged();
     });
     this.shadowRoot.querySelector("#select-none")?.addEventListener("click", () => {
-      this.captureFormState();
-      this._selected = [];
-      this._entities = [];
-      this.render();
+      this.shadowRoot.querySelectorAll("[data-device-id]").forEach(input => {
+        input.checked = false;
+      });
+      this.selectionChanged();
     });
     this.shadowRoot.querySelector("#show")?.addEventListener("click", () => this.loadEntities());
     this.shadowRoot.querySelector("#export")?.addEventListener("click", () => this.exportFile());

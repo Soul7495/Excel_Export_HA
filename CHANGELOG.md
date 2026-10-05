@@ -2,6 +2,12 @@
 
 All notable changes to **Device Entity XLSX Export** are documented here.
 
+## [0.4.1] - 2026-10-05
+
+### Fixed
+- Preserved the device list scroll position when selecting or clearing devices.
+- Updated selection counters and action buttons without rebuilding the complete panel.
+
 ## [0.4.0] - 2026-10-05
 
 ### Added

@@ -268,10 +268,9 @@ async def async_build_export(
     )
 
 
-async def async_export_to_disk(hass: HomeAssistant, **options: Any):
-    filename, content, count, name = await async_build_export(hass, **options)
-    directory = Path(hass.config.path(EXPORT_DIR))
-    await hass.async_add_executor_job(directory.mkdir, 0o755, True, True)
+def _write_export_file(directory: Path, filename: str, content: bytes) -> Path:
+    """Write an export using a unique filename off the event loop."""
+    directory.mkdir(parents=True, exist_ok=True)
 
     path = directory / filename
     counter = 2
@@ -279,7 +278,19 @@ async def async_export_to_disk(hass: HomeAssistant, **options: Any):
         path = directory / f"{Path(filename).stem}_{counter}.xlsx"
         counter += 1
 
-    await hass.async_add_executor_job(path.write_bytes, content)
+    path.write_bytes(content)
+    return path
+
+
+async def async_export_to_disk(hass: HomeAssistant, **options: Any):
+    filename, content, count, name = await async_build_export(hass, **options)
+    directory = Path(hass.config.path(EXPORT_DIR))
+    path = await hass.async_add_executor_job(
+        _write_export_file,
+        directory,
+        filename,
+        content,
+    )
     return {
         "device": name,
         "device_id": options["device_id"],

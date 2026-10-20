@@ -2,6 +2,12 @@
 
 All notable changes to **Device Entity XLSX Export** are documented here.
 
+## [0.4.2] - 2026-10-20
+
+### Fixed
+- Kept the XLSX download endpoint authenticated and now return a short-lived Home Assistant `authSig` URL generated with `async_sign_path` for browser and Companion App downloads.
+- Moved export directory creation, unique filename lookup, and file writing into one executor job so filesystem I/O no longer blocks the Home Assistant event loop.
+
 ## [0.4.1] - 2026-10-05
 
 ### Fixed

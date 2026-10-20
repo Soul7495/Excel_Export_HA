@@ -1,6 +1,7 @@
 """HTTP API for the Device Entity XLSX Export sidebar panel."""
 from __future__ import annotations
 
+from datetime import timedelta
 import secrets
 import time
 from typing import Any
@@ -9,6 +10,7 @@ from urllib.parse import quote
 from aiohttp import web
 
 from homeassistant.components.http import KEY_HASS, HomeAssistantView, require_admin
+from homeassistant.components.http.auth import async_sign_path
 from homeassistant.exceptions import ServiceValidationError
 
 from .const import API_BASE, DOMAIN, DOWNLOAD_TTL_SECONDS, MAX_PENDING_DOWNLOADS
@@ -168,10 +170,17 @@ class ExportPrepareView(HomeAssistantView):
         }
         _cleanup_downloads(hass)
 
+        download_path = f"{API_BASE}/download/{token}"
+        download_url = async_sign_path(
+            hass,
+            download_path,
+            timedelta(seconds=DOWNLOAD_TTL_SECONDS),
+        )
+
         return self.json(
             {
                 "filename": filename,
-                "download_url": f"{API_BASE}/download/{token}",
+                "download_url": download_url,
                 "expires_in": DOWNLOAD_TTL_SECONDS,
                 "entity_count": count,
                 "device": device_name,
@@ -184,11 +193,9 @@ class DownloadView(HomeAssistantView):
 
     url = f"{API_BASE}/download/{{token}}"
     name = "api:device_entity_xlsx_export:download"
-    # The unguessable, short-lived token is the credential for this endpoint.
-    # A normal authenticated API request is deliberately not required here so
-    # mobile WebViews can hand the URL to their native download handler.
-    requires_auth = False
+    requires_auth = True
 
+    @require_admin
     async def get(self, request: web.Request, token: str) -> web.Response:
         """Return the prepared workbook while its token is still valid."""
         hass = request.app[KEY_HASS]
